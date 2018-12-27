@@ -1,1 +1,1 @@
-You need to create your own `firebase-messaging-sw.js` in this dir; please read the [client README](../blob/master/client/README.md). 
+You need to create your own `firebase-messaging-sw.js` in this dir; please read the [client README](https://github.com/mipyykko/dists-task3/blob/master/client/README.md). 
