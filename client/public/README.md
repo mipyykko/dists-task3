@@ -1,0 +1,1 @@
+You need to create your own `firebase-messaging-sw.js` in this dir; please read the [client README](../blob/master/client/README.md). 

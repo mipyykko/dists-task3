@@ -1,7 +1,13 @@
 var express = require('express')
 var fcm = require('firebase-admin')
+var cors = require('cors')
+var bodyParser = require('body-parser')
 var serviceAccount = require('./serviceaccount.json')
+
 var app = express()
+
+app.use(cors())
+app.use(bodyParser.json())
 
 fcm.initializeApp({
   credential: fcm.credential.cert(serviceAccount),
@@ -10,32 +16,37 @@ fcm.initializeApp({
 
 var sendingMessages = true
 var messageIdx = 0
-const registeredClients = ['1234']
+const registeredClients = []
 
 const sendMessage = () => {
-  const messageContent = `Message #${++messageIdx}` 
+  if (registeredClients.length > 0) {
+    const messageContent = `Message #${++messageIdx}` 
 
-  registeredClients.forEach(token => {
-    var message = {
-      data: {
-        message: `${messageContent} sent to ${token}` // at date...
-      },
-      token: token
-    }
+    registeredClients.forEach(token => {
+      var message = {
+        'notification': {
+          'title': `Message #${messageIdx}`,
+          'body': `${messageContent} sent to ${token}` // at date...
+        },
+        'token': token
+      }
 
-    fcm.messaging().send(message)
-      .then(res => {
-        console.log(`Success sending: ${res}`)
-      })
-      .catch(err => {
-        console.log(`Error sending: ${err}`)
-      })
-  })
+      fcm
+        .messaging()
+        .send(message)
+        .then(res => {
+          // console.log(`Success sending: ${res}`)
+        })
+        .catch(err => {
+          console.log(`Error sending: ${err}`)
+        })
+    })
 
-  console.log(messageContent)
+    console.log(messageContent)
+  }
 
   if (sendingMessages) {
-    setTimeout(sendMessage, Math.random() * 500)
+    setTimeout(sendMessage, 1000 + Math.random() * 500)
   }
 }
 
@@ -44,7 +55,18 @@ app.get("/", (req, res) => {
 })
 
 app.post("/register", (req, res) => {
-  console.log("hell-o")
+  const { token } = req.body
+
+  if (token) {
+    if (!registeredClients.includes(token)) {
+      registeredClients.push(token)
+      console.log("registered: ", token)
+      
+      res.sendStatus(200)
+    }     
+  } else {
+    res.sendStatus(500)
+  } 
 })
 
 var server = app.listen(8082, () => {
@@ -52,7 +74,7 @@ var server = app.listen(8082, () => {
   var port = server.address().port
   console.log(`Listening at port ${port}`)
 
-  setTimeout(sendMessage, Math.random() * 500)
+  setTimeout(sendMessage, 1000 + Math.random() * 500)
 })
 
 
