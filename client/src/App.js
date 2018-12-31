@@ -45,6 +45,7 @@ class App extends Component {
       payloadLength: 5,
       messageAmount: 50,
       uniquePayloads: true,
+      randomPayload: false,
       error: null,
       messages: []
     }
@@ -143,7 +144,8 @@ class App extends Component {
           data: { 
             amount: this.state.messageAmount, 
             length: this.state.payloadLength, 
-            unique: this.state.uniquePayloads
+            unique: this.state.uniquePayloads,
+            random: this.state.randomPayload
           },
           enterState: states.STARTING, 
           okValues: { receiving: true, messages: [] },
@@ -190,6 +192,7 @@ class App extends Component {
             id="length"
             label="Payload length"
             value={this.state.payloadLength}
+            disabled={this.state.randomPayload}
             type="number"
             onChange={this.handleChange('payloadLength')}
           />
@@ -204,6 +207,16 @@ class App extends Component {
           />
         </Grid>
         <Grid item xs={3}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                id="random"
+                checked={this.state.randomPayload}
+                onChange={this.handleCheckbox('randomPayload')}
+              />
+            }
+            label="Random payload size"
+          />
           <FormControlLabel
             control={
               <Checkbox

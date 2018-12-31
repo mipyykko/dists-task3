@@ -23,10 +23,16 @@ var registeredClients = []
 var delay = 100
 var delayRandom = 50
 var payloadLength = 5
+var randomPayloadMin = 1
+var randomPayloadMax = 50
+var randomPayload = false
 var uniquePayloads = true
 let payload = ''
 
-const getPayload = () => payload || loremIpsum({ count: payloadLength, units: 'sentences' })
+const getPayload = () => payload || loremIpsum({ 
+  count: randomPayload ? randomPayloadMin + Math.random() * (randomPayloadMax- randomPayloadMin) : payloadLength, 
+  units: 'sentences' 
+})
 const getDelay = () => delay + Math.random() * delayRandom
 
 const scheduleSending = () => {
@@ -91,7 +97,7 @@ app.get("/", (req, res) => {
 })
 
 app.post("/start", async (req, res) => {
-  const { length, amount, unique = true } = req.body
+  const { length, amount, unique = true, random = false } = req.body
 
   if (!sendingMessages && length && amount)  {
     console.log("starting sending")
@@ -99,7 +105,8 @@ app.post("/start", async (req, res) => {
     toBeSentCount = amount
     payloadLength = length
     sendingMessages = true
-    payload = unique ? '' : loremIpsum({ count: payloadLength, units: 'sentences' })
+    randomPayload = random
+    payload = (unique || random) ? '' : loremIpsum({ count: payloadLength, units: 'sentences' })
 
     scheduleSending()
 
