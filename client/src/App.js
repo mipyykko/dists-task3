@@ -2,14 +2,17 @@ import React, { Component } from 'react';
 import firebase from './config/firebase'
 import './App.css';
 
-import { 
+import {
+  CssBaseline,
   Button, 
   Card, CardContent, 
   Paper,
   Typography, 
   Grid,
-  TextField, Checkbox
+  TextField, Checkbox,
+  FormGroup, FormControlLabel
 } from '@material-ui/core'
+import { withStyles } from '@material-ui/core/styles'
 
 const messaging = firebase.messaging()
 const API_URL = 'http://localhost:8082'
@@ -22,9 +25,18 @@ const states = {
   STOPPING: 'STOPPING'
 }
 
+const styles = theme => ({ 
+  root: { 
+    flexGrow: 1
+  },
+  grid: { 
+    "margin-bottom": "4px"
+  }
+})
+
 class App extends Component {
-  constructor() {
-    super()
+  constructor(props) {
+    super(props)
 
     this.state = {
       token: null,
@@ -47,14 +59,17 @@ class App extends Component {
       ) / this.state.messages.length).toFixed(2)
   }
 
-  newMessage = (msg) => (
-    {
+  newMessage = (msg) => {
+    const receivedTime = new Date()
+
+    return {
       title: msg.notification.title,
       body: msg.notification.body,
       sentTime: msg.data.time,
-      receivedTime: new Date().toISOString()
+      receivedTime: receivedTime.toISOString(),
+      elapsedTime: (receivedTime - new Date(msg.data.time)).toFixed(2)
     }
-  )
+  }
 
   handleMessage = (msg) => {
     const { signal } = msg.data
@@ -116,7 +131,8 @@ class App extends Component {
           endpoint: btn,
           data: { token: this.state.token }, 
           enterState: btn === 'register' ? states.REGISTERING : states.UNREGISTERING,
-          okValues: btn === 'register' ? { registered: true } : { registered: false, token: null }
+          okValues: btn === 'register' ? { registered: true } : { registered: false, token: null },
+          errorValues: { error: `Problem with ${btn}ing!` }
         }
         this.handlePost(options)
 
@@ -167,79 +183,109 @@ class App extends Component {
   }
 
   renderForm = () => (
-    <div>
-      <form noValidate autoComplete='off'>
-        <TextField
-          id="length"
-          label="Payload length"
-          value={this.state.payloadLength}
-          type="number"
-          onChange={this.handleChange('payloadLength')}
-        />
-        <TextField
-          id="count"
-          label="Message amount"
-          value={this.state.messageAmount}
-          type="number"
-          onChange={this.handleChange('messageAmount')}
-        />
-        <Checkbox
-          id="unique"
-          label="Unique payloads"
-          checked={this.state.uniquePayloads}
-          onChange={this.handleCheckbox('uniquePayloads')}
-        />
-      </form>
-    </div>  
+    <FormGroup row>
+      <Grid container spacing={24}>
+        <Grid item xs={3}>
+          <TextField
+            id="length"
+            label="Payload length"
+            value={this.state.payloadLength}
+            type="number"
+            onChange={this.handleChange('payloadLength')}
+          />
+        </Grid>
+        <Grid item xs={3}>
+          <TextField
+            id="count"
+            label="Message amount"
+            value={this.state.messageAmount}
+            type="number"
+            onChange={this.handleChange('messageAmount')}
+          />
+        </Grid>
+        <Grid item xs={3}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                id="unique"
+                checked={this.state.uniquePayloads}
+                onChange={this.handleCheckbox('uniquePayloads')}
+              />
+            }
+            label="Unique payloads"
+          />
+        </Grid>
+        <Grid item xs={3}>
+          {this.state.registered ? <Button variant="contained" disabled={this.state.state === states.STARTING || this.state.receiving} onClick={this.handleClick('start')}>Start</Button> : null}
+        </Grid>
+      </Grid>  
+    </FormGroup>
   )
 
   renderMessage = (msg) => (
     <Card key={`${msg.sentTime}${msg.receivedTime}`}>
       <CardContent>
         <Typography variant="h5" component="h2">{msg.title}</Typography>
-        <Typography color="textSecondary">Sent: {msg.sentTime}, received: {msg.receivedTime}</Typography>
+        <Typography color="textSecondary">Sent: {msg.sentTime}, received: {msg.receivedTime}, elapsed: {msg.elapsedTime}</Typography>
         <Typography component="p">{msg.body}</Typography>
       </CardContent>
     </Card>
   )
 
   render() {
+    const { classes } = this.props
     return (
       <div>
+        <CssBaseline />
         <h2>Push notification demo</h2>
-        <Grid container>
-          <Grid item xs={12}>
             {this.state.token ? 
-              <p>Currently using token {this.state.token}</p>
-            : <div>
-                <p>Click on the button below to get a token. Remember to allow notifications!</p>
-                <Button variant="raised" onClick={this.handleClick('token')}>Get token</Button>
-              </div>
+              <Grid container spacing={24}>
+                <Grid item xs>
+                  <Typography variant="h5" component="h5">Token</Typography>
+                  <Typography color="textSecondary">{this.state.token}</Typography>
+                </Grid>
+              </Grid>
+            : <Grid container spacing={24}>
+                <Grid item xs={9}>
+                  Click on the button to get a token. Remember to allow notifications!
+                </Grid>
+                <Grid item xs={3}>
+                  <Button variant="contained" onClick={this.handleClick('token')}>Get token</Button>
+                </Grid>
+              </Grid>
             }
+        {this.state.token && !this.state.registered ?
+          <Grid container spacing={24}>
+            <Grid item xs={9}>
+              Click to register your client at the server.
+            </Grid>
+            <Grid item xs={3}>
+              <Button variant="contained" disabled={this.state.state === states.REGISTERING} onClick={this.handleClick('register')}>Register</Button>
+            </Grid>
           </Grid>
-          {this.state.token && !this.state.registered ?
-            <div>
-              <p>Click to register your client at the server.</p>
-              <Button variant="raised" disabled={this.state.state === states.REGISTERING} onClick={this.handleClick('register')}>Register</Button>
-            </div>
-          : this.state.registered 
-            ? <div>
-                <p>Registered to server. Click to unregister.</p>
-                <Button variant="raised" disabled={this.state.state === states.UNREGISTERING} onClick={this.handleClick('unregister')}>Unregister</Button>
-              </div> 
-            : null
-          }
-          {this.state.error ? <Typography color="error">{this.state.error}</Typography> : null}
+        : this.state.registered 
+          ? <Grid container className={classes.grid} spacing={24}>
+              <Grid item xs={9}>
+                Registered to server. Click to unregister.
+              </Grid>
+              <Grid item xs={3}>
+                <Button variant="contained" disabled={this.state.state === states.UNREGISTERING} onClick={this.handleClick('unregister')}>Unregister</Button>
+              </Grid>
+            </Grid> 
+          : null
+        }
+          {this.state.error ? 
+            <Grid container spacing={24}>
+              <Typography color="error">{this.state.error}</Typography>
+            </Grid> : null}
           {this.state.registered && this.renderForm()}
-          {!this.state.receiving && this.state.registered ? <Button variant="raised" disabled={this.state.state === states.STARTING} onClick={this.handleClick('start')}>Start</Button> : null}
           <p>{this.state.messages.length} message{this.state.messages.length === 1 ? '' : 's'} received, average time {this.averageTime()} ms</p>
           <Paper style={{maxHeight: 600, overflow: 'auto' }}>
             {this.state.messages.slice(-10).map(msg => this.renderMessage(msg))}
           </Paper>
-        </Grid>
       </div>
     )
   }
 }
 
-export default App;
+export default withStyles(styles)(App);
