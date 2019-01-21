@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import firebase from './config/firebase'
 import './App.css';
+import 'react-input-range/lib/css/index.css'
 
 import {
   CssBaseline,
@@ -13,6 +14,7 @@ import {
   FormGroup, FormControlLabel
 } from '@material-ui/core'
 import { withStyles } from '@material-ui/core/styles'
+import InputRange from 'react-input-range'
 
 const messaging = firebase.messaging()
 const API_URL = 'http://localhost:8082'
@@ -22,12 +24,14 @@ const states = {
   REGISTERING: 'REGISTERING',
   UNREGISTERING: 'UNREGISTERING',
   STARTING: 'STARTING',
-  STOPPING: 'STOPPING'
+  STOPPING: 'STOPPING',
+  OK: 'OK'
 }
 
 const styles = theme => ({ 
   root: { 
-    flexGrow: 1
+    flexGrow: 1,
+    padding: 10
   },
   grid: { 
     "margin-bottom": "4px"
@@ -44,6 +48,7 @@ class App extends Component {
       receiving: false,
       payloadLength: 5,
       messageAmount: 50,
+      delay: { min: 100, max: 150 },
       uniquePayloads: true,
       randomPayload: false,
       error: null,
@@ -58,6 +63,19 @@ class App extends Component {
       .reduce(
         (acc, curr) => (acc + (new Date(curr.receivedTime) - new Date(curr.sentTime))), 0
       ) / this.state.messages.length).toFixed(2)
+  }
+
+  arrivalRate = () => {
+    const len = this.state.messages.length
+
+    if (len === 0) { return 0 }
+
+    return (this.state.messages
+      .reduce(
+        (acc, curr, idx, src) => (
+          idx > 0 ? acc + (new Date(src[idx].receivedTime) - new Date(src[idx - 1].receivedTime)) : 0
+        ), 0
+      ) / len).toFixed(2)
   }
 
   newMessage = (msg) => {
@@ -113,11 +131,9 @@ class App extends Component {
       body: JSON.stringify(data)
     })
       .then(res => {
-        console.log(res)
         this.setState({ ...this.state, ...okValues, state: okState })
       })
       .catch(err => {
-        console.log(err)
         this.setState({ ...this.state, ...errorValues, state: errorState })
       })
   }
@@ -145,11 +161,21 @@ class App extends Component {
             amount: this.state.messageAmount, 
             length: this.state.payloadLength, 
             unique: this.state.uniquePayloads,
-            random: this.state.randomPayload
+            random: this.state.randomPayload,
+            delay: this.state.delay
           },
           enterState: states.STARTING, 
           okValues: { receiving: true, messages: [] },
           errorValues: { receiving: false }
+        }
+        this.handlePost(options)
+
+        break
+      case 'stop':
+        options = { 
+          endpoint: 'stop',
+          okValues: { receiving: false },
+          errorValues: { receiving: false }
         }
         this.handlePost(options)
 
@@ -229,9 +255,24 @@ class App extends Component {
           />
         </Grid>
         <Grid item xs={3}>
-          {this.state.registered ? <Button variant="contained" disabled={this.state.state === states.STARTING || this.state.receiving} onClick={this.handleClick('start')}>Start</Button> : null}
+          {this.state.registered ? 
+            !this.state.receiving ?
+              <Button variant="contained" disabled={this.state.state === states.STARTING} onClick={this.handleClick('start')}>Start</Button> : 
+              <Button variant="contained" disabled={this.state.state === states.STARTING} onClick={this.handleClick('stop')}>Stop</Button> : 
+                null}
         </Grid>
       </Grid>  
+      <Grid container spacing={24}>
+        <Grid item xs={6}>
+          <InputRange
+            maxValue={1000}
+            minValue={0}
+            step={5}
+            value={this.state.delay}
+            onChange={delay => this.setState({ delay })}
+          />
+        </Grid>            
+      </Grid>
     </FormGroup>
   )
 
@@ -248,7 +289,7 @@ class App extends Component {
   render() {
     const { classes } = this.props
     return (
-      <div>
+      <div style={{ margin: 10 }}>
         <CssBaseline />
         <h2>Push notification demo</h2>
             {this.state.token ? 
@@ -292,7 +333,7 @@ class App extends Component {
               <Typography color="error">{this.state.error}</Typography>
             </Grid> : null}
           {this.state.registered && this.renderForm()}
-          <p>{this.state.messages.length} message{this.state.messages.length === 1 ? '' : 's'} received, average time {this.averageTime()} ms</p>
+          <p>{this.state.messages.length} message{this.state.messages.length === 1 ? '' : 's'} received, average time {this.averageTime()} ms, average arrival rate {this.arrivalRate()} ms</p>
           <Paper style={{maxHeight: 600, overflow: 'auto' }}>
             {this.state.messages.slice(-10).map(msg => this.renderMessage(msg))}
           </Paper>

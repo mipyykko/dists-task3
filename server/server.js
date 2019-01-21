@@ -20,8 +20,8 @@ var messageIdx = 0
 var sentCount = 0
 var toBeSentCount = 50
 var registeredClients = []
-var delay = 100
-var delayRandom = 50
+var delayMin = 100
+var delayMax = 150
 var payloadLength = 5
 var randomPayloadMin = 1
 var randomPayloadMax = 50
@@ -30,10 +30,10 @@ var uniquePayloads = true
 let payload = ''
 
 const getPayload = () => payload || loremIpsum({ 
-  count: randomPayload ? randomPayloadMin + Math.random() * (randomPayloadMax- randomPayloadMin) : payloadLength, 
+  count: randomPayload ? randomPayloadMin + Math.random() * (randomPayloadMax - randomPayloadMin) : payloadLength, 
   units: 'sentences' 
 })
-const getDelay = () => delay + Math.random() * delayRandom
+const getDelay = () => delayMin + Math.random() * (delayMax - delayMin)
 
 const scheduleSending = () => {
   setTimeout(sendMessage, getDelay())
@@ -48,7 +48,7 @@ const sendMessage = () => {
       var message = {
         'notification': {
           'title': messageTitle,
-          'body': `${messageBody} sent to ${token}`,
+          'body': `${messageBody}` // `sent to ${token}`,
         },
         'data': {
           'time': new Date().toISOString()// at date...
@@ -66,13 +66,13 @@ const sendMessage = () => {
           console.log(`Error sending: ${err}`)
         })
     })
-  }
 
-  if (++sentCount < toBeSentCount) {
-    scheduleSending()
-  } else {
-    sendingMessages = false
-    sendStop()
+    if (sendingMessages && ++sentCount < toBeSentCount) {
+      scheduleSending()
+    } else {
+      sendingMessages = false
+      sendStop()
+    }
   }
 }
 
@@ -81,7 +81,7 @@ const sendStop = () => {
 
   registeredClients.forEach(token => {
     const message = {
-      'notification': { 'body': 'asdf' },
+      'notification': { 'body': 'stopping' },
       'data': { 'signal': 'STOP' }, 
       'token': token
     }
@@ -97,7 +97,7 @@ app.get("/", (req, res) => {
 })
 
 app.post("/start", async (req, res) => {
-  const { length, amount, unique = true, random = false } = req.body
+  const { length, amount, unique = true, random = false, delay: { min: _delayMin, max: _delayMax } } = req.body
 
   if (!sendingMessages && length && amount)  {
     console.log("starting sending")
@@ -106,6 +106,8 @@ app.post("/start", async (req, res) => {
     payloadLength = length
     sendingMessages = true
     randomPayload = random
+    delayMin = Math.max(_delayMin, 1)
+    delayMax = _delayMax
     payload = (unique || random) ? '' : loremIpsum({ count: payloadLength, units: 'sentences' })
 
     scheduleSending()
@@ -114,6 +116,14 @@ app.post("/start", async (req, res) => {
   } else {
     res.sendStatus(500)
   }
+})
+
+app.post("/stop", async (req, res) => {
+  if (!sendingMessages) res.sendStatus(500)
+
+  sendingMessages = false
+
+  res.sendStatus(200)
 })
 
 app.post("/register", (req, res) => {
