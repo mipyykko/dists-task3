@@ -11,7 +11,7 @@ import {
   Typography, 
   Grid,
   TextField, Checkbox,
-  FormGroup, FormControlLabel
+  FormGroup, FormControlLabel, FormLabel
 } from '@material-ui/core'
 import { withStyles } from '@material-ui/core/styles'
 import InputRange from 'react-input-range'
@@ -265,12 +265,17 @@ class App extends Component {
       <Grid container spacing={24}>
         <Grid item xs={6}>
           <InputRange
-            maxValue={1000}
+            style={{ margin: 10 }}
+            name="range"
+            maxValue={500}
             minValue={0}
             step={5}
             value={this.state.delay}
             onChange={delay => this.setState({ delay })}
           />
+        </Grid>
+        <Grid item xs={3}>
+          <FormLabel component="range" style={{ margin: 10 }}>Message interval {this.state.delay.min}-{this.state.delay.max} ms</FormLabel>
         </Grid>            
       </Grid>
     </FormGroup>
